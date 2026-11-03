@@ -1,0 +1,106 @@
+---
+title: 'Texas Holdem Poker: A Simulator Interface'
+author: "Mingyuan Li"
+date: "`r Sys.Date()`"
+output:
+  ioslides_presentation: default
+  beamer: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Intro to Texas Hold'em Poker
+
+- Each player gets two cards, faced down. There are also 5 common cards. Each player could see only the common cards and their own private cards
+- At certain stages of the game, the player can see the first 0 (pre-flop), 3 (flop), 4 (turn) or 5 (river) common cards.
+- At each of these stages, each player can choose to fold(forfeit their private cards faced down and the bet), call(bet the same amount as the previous player did), or raise(bet more amount than the previous player did).
+- Finally, the players who haven't folded show their private cards, and form a best hand of five cards using their 2 private cards + 5 common cards.
+- The players with the best hands wins. In case of a tie, the players with the same best hand share the winning amount.
+
+## Type of Hands
+
+In decreasing order:
+
+- Straight Flush: Five cards of the same suit with consecutive rank
+- Four of a Kind: Four cards of same rank + single
+- Full House: Three cards of same rank + a pair with different rank
+- Flush: Five cards of same suit
+- Straight: Five cards of consecutive rank
+- Three of a Kind: Three cards of same rank + high single + low single
+- Two Pairs: Larger pair + Smaller pair + single
+- One Pair: Pair + highest single + middle single + lowest single
+- High Card: Five cards with no pair, no straight and no flush
+
+## Type of Hands - Cont'd
+
+The ranking of cards are A>K>Q>J>10>9>..>2; A-2-3-4-5 are allowed in straight or straight flush and are regarded as the most inferior straight, whilst the most superior one is 10-J-Q-K-A. The four suits are considered equal.
+
+When comparing two hands of the same type, the comparison is done in the order specified above. e.g. For two Full-Houses, first compare the triples; if the triples are the same, then compare the pair. For straight/straight flush, the highest-ranked cards are used; for flushes/High-card, we first compare the highest-ranked card, then the second-highest, etc.
+
+## Modelling Poker
+
+First, we label the cards from 1 to 52, in the order of hearts 2, 3, ..., 10, J, Q, K, A; spades 2, 3, ..., A; diamonds 2, 3, ..., A; clubs 2, 3, ..., A;
+
+We assume that there are $5$ players, and $15$ cards are dealt as a random sample from the standard deck of 52. For player $i$, we denote their private cards as $X_{i1},X_{i2}$. We denote the common cards as $Z_1,\cdots,Z_5$. We assume at some point, a subset $\mathcal{S}$ of the five common cards are faced up. 
+
+To simplify things, we do not consider the delicate betting strategy.
+
+## Probability of Interest
+
+Assume we are in the position of player $i$. Then what we care about is
+$$
+\begin{aligned}
+&P(\text{Me having xxx as type of best hand}|X_{i1},X_{i2},\mathcal{S})\\
+&P(\text{Other player having xxx as type of best hand}|\mathcal{S})\\
+&P(\text{Me winning}|X_{i1},X_{i2},\mathcal{S})
+\end{aligned}
+$$
+These probabilities can be done through Monte-Carlo simulation to avoid the complexity of exact computation.
+
+From a bystander perspective, we can put any subset of private cards of all players in the conditioning for the purpose of game review.
+
+## Sketch of Monte-Carlo Simulation
+
+Suppose $|\mathcal{S}|=m$, then for $P(\text{Me having xxx as type of best hand}|X_{i1},X_{i2},\mathcal{S})$, we simply sample without replacement the rest of the $5-m$ common cards from the remaining $50-m$ cards as a random sample and count the occurance of the best hand.
+
+For the other two kinds of probabilities, what we do is similar: sample many times other players' private cards along with the unrevealed common cards (or just any card that was dealt but invisible to you), and then count the proportion of other players' hand type or the proportion of samples in which someone wins.
+
+## Poker Interface
+
+URL: [lmy99.shinyapps.io/Pokerprob](lmy99.shinyapps.io/Pokerprob)
+
+- Calculates hand type probability for 5-player poker game.
+
+- Ability to condition on any amount of card information, i.e. 0/3/4/5 common cards + any subset of players with visible cards
+
+- Includes a chart of pre-flop probabilities for any combination of private cards, either of the same suit or different suits.
+
+- Allow for setting (subjective) bluffing coefficient for each player to generate subjective hand-type probabilities for them.
+
+## Some pre-flop strategy
+
+Poker is not all about probability, it is also about psychology. But at early stages, we can make choices about whether to go on or forfeit the game. We assume we have 5 players around the table and are at pre-flop.
+
+- Pocket Pairs are great but if only they are high enough: holding pair of 8's and above can secure 30\% of winning (Pair of A's giving 57\%);
+- Small pairs get beaten by large non-pairs: such as King and Ace (~35\%) beating pair of 2's (18\%)
+- Don't bet on Straights: private cards that are close but mediocre in rank, e.g. 5 and 8 (16\%), are not that advantageous, while 5 and Ace gets you to 23\% winning probability.
+- If you don't have a pocket pair: having same suit gives you 3-4\% extra probability of winning.
+
+## Bluffing
+
+For each round of the game, each player has the choice of forfeiting, betting the same value, or betting even more. This is related to bluffing: letting others know/believe that you are more likely to have better hands. We can include bluffing as a hyperparameter and present a subjective probability, which is, in **the perspective of another player**, how likely will they obtain a specific hand type.
+
+## Bluffing Coefficient
+
+Consider the **cumulative** probability of the hand type $Z\in\{1,2,\cdots,9\}$, where $1$ to $9$ denotes the 9 hand types from bottom(high card) to top(straight flush).
+
+$$
+\delta_j=P(Z\le j)
+$$
+From our(the player's) perspective, when one opponent bluffs, we can update our subjective probability of each hand type of the opponents:
+$$
+\delta_j^{(\alpha)}=P(Z\le j)^\alpha
+$$
+where $\alpha\ge1$ is a *subjective* parameter representing how well we believe their bluff. $\alpha=1$ means that we ignore all bluffing of others, and as $\alpha$ increases, our subjective belief will lean more towards the more superior types.
